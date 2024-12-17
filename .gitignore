@@ -1,0 +1,7 @@
+ci2.ipynb
+Penguin.csv
+paper/
+model/
+runs/   
+*.zip
+data/
