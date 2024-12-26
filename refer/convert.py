@@ -32,6 +32,6 @@ def convert_triplet_to_pair(input_csv, output_csv):
     
 
 
-input_csv = "data\hand_cleaned_filtered_triplets_with_labels2_corrected.csv"  # 输入文件路径
+input_csv = "E:\Downloads\hand_cleaned_filtered_triplets_with_labels.csv"  # 输入文件路径
 output_csv = "data\pair.csv"    # 输出文件路径
 convert_triplet_to_pair(input_csv, output_csv)

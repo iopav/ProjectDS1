@@ -10,7 +10,7 @@ import math
 import os
 
 #将merge的图片读入dataloader
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 
 import torch
 from torchvision import models
@@ -28,7 +28,7 @@ import refer.img_processor as img_processor
 
 import matplotlib.pyplot as plt
 from PIL import Image
-from refer.Dataset import KinshipDataset
+from refer.Dataset import KinshipDataset,FIWDataset
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -36,14 +36,16 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 #split and init
-img_folder1 = 'data\\KinFaceW-I\\images'
-img_folder2 = 'data\\KinFaceW-II\\images'
+img_folder1 = '..\data\\KinFaceW-I\\images'
+img_folder2 = '..\data\\KinFaceW-II\\images'
 dataset = KinshipDataset(root_dirs=[img_folder1, img_folder2],transform=img_processor.preprocess224_MaxVit)
+dataset1 = FIWDataset(csv_file="data/pair.csv",transform=img_processor.preprocess224_MaxVit)
 # fiwdataset =
 # 合并原始数据集和新增数据集
-# combined_dataset = ConcatDataset([dataset, new_dataset])
+dataset = ConcatDataset([dataset, dataset1])
+print("dataset len",dataset.__len__())
 #parameters
-batch_size = 4
+batch_size = 8
 learning_rate = 1e-05
 betas = (0.9, 0.999)
 num_workers = 4
@@ -53,27 +55,25 @@ drop_path_rate = 0.625
 gamma = 0.7
 num_epochs=200
 
-
+# dataset = torch.utils.data.Subset(dataset, range(0, 45))
 # Define the lengths for train, validation, and test sets
 train_size = int(0.7 * len(dataset))
 test_size = len(dataset) - train_size
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+print("device:",device)
 # Split the dataset
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
 # Create DataLoaders for each set
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 model = Maxvit(num_classes=8).to(device)
 # print(model)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=betas, weight_decay=weight_decay)
-print("train len, test len")
-print(train_dataset.__len__(),  test_dataset.__len__())
-print("train shape")
-print(train_dataset.__getitem__(0)[0][0].shape)
+print("train len, test len:",train_dataset.__len__(),  test_dataset.__len__())
+# print("train shape:",train_dataset.__getitem__(0)[0][0].shape)
 
 
 # Train the model
@@ -103,6 +103,7 @@ def train(model, train_loader, val_loader, optimizer, num_epochs, batch_size, de
     
             imgs = (imgs[0].to(device), imgs[1].to(device))
             label = label.to(device)
+            # assert torch.max(label) < 8 and torch.min(label) >= 0, "Label out of range!"
 
             optimizer.zero_grad()
             output = model(imgs)
@@ -157,7 +158,7 @@ def train(model, train_loader, val_loader, optimizer, num_epochs, batch_size, de
                 'accuracy_list': acc_list,
             }
             torch.save(state_dict, model_save_path+'maxvit-'+str(epoch)+"-"+str(val_accuracy)+'.pth')
-            print(f'Model saved with accuracy: {best_accuracy:.4f}')
+            print(f'Model saved with accuracy: {best_accuracy:.4f}',"at path:",model_save_path+'maxvit-'+str(epoch)+"-"+str(val_accuracy)+'.pth')
 
         acc_list.append(val_accuracy)
 
@@ -170,6 +171,9 @@ def main():
     #确保文件夹存在，否则创建
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
+        print("model folder created")
+    else:
+        print("model folder exists")
     # train(model, train_loader, test_loader, optimizer, num_epochs, batch_size, device, model_save_path,resume=True,model_name='E:\workspace\ProjectDS\model\maxvit00.5424836601307189.pth')
     train(model, train_loader, test_loader, optimizer, num_epochs, batch_size, device, model_save_path)
 if __name__ == "__main__":

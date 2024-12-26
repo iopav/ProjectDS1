@@ -3,7 +3,7 @@ from torchvision import transforms
 from refer.img_processor import getfilelist
 import os
 from PIL import Image
-
+import pandas as pd
 class Dataset(Dataset):
     def __init__(self, folderpath, transform=None):
         self.folderpath = folderpath
@@ -25,8 +25,6 @@ class Dataset(Dataset):
         return img, label
 
 
-import os
-from PIL import Image
 
 class KinshipDataset(Dataset):
     def __init__(self, root_dirs, transform=None):
@@ -98,19 +96,38 @@ class KinshipDataset(Dataset):
 # img_folder2 = 'data\\KinFaceW-II\\images'
 # dataset = KinshipDataset(root_dirs=[img_folder1, img_folder2])
 
+
 class FIWDataset(Dataset):
-    def __init__(self, folderpath, transform=None):
-        super().__init__(folderpath, transform)
+    def __init__(self, csv_file, transform=None):
+        """
+        Args:
+            csv_file (str): CSV 文件路径，包含 'anchor', 'person', 'type' 列。
+            transform (callable, optional): 图像的预处理转换。
+        """
+        self.data_frame = pd.read_csv(csv_file)
+        self.data_frame = self.data_frame[self.data_frame['type'] != -1].reset_index(drop=True)
         
-    def getpairs(self):
-        
+        self.transform = transform
+
+    def __len__(self):
+        """返回数据集大小"""
+        return len(self.data_frame)
+
     def __getitem__(self, idx):
-        img_path = os.path.join(self.folderpath, self.filename_list[idx])
-        img = Image.open(img_path)
-        
-        label = self.imglabel[self.filename_list[idx].split('_')[0]]
-        
+        """根据索引返回一个样本"""
+        # 获取当前行的 anchor 和 person 路径以及标签
+        anchor_path = self.data_frame.iloc[idx]['anchor']
+        person_path = self.data_frame.iloc[idx]['person']
+        label = self.data_frame.iloc[idx]['type']
+
+        # 加载图像
+        anchor_image = Image.open(anchor_path).convert('RGB')
+        person_image = Image.open(person_path).convert('RGB')
+
+        # 应用预处理
         if self.transform:
-            img = self.transform(img)
-        
-        return img, label
+            anchor_image = self.transform(anchor_image)
+            person_image = self.transform(person_image)
+
+        # 返回两个图像及其标签
+        return (anchor_image, person_image), label
