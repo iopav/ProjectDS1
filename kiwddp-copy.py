@@ -21,7 +21,7 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
 import numpy as np
 from torch.utils.data import Subset
-
+torch.manual_seed(0)
 # Initialize distributed training
 os.environ['MASTER_ADDR'] = 'localhost'  # Replace with the master node's IP if using multiple machines
 os.environ['MASTER_PORT'] = '12355'     # A free port number for communication
@@ -63,8 +63,9 @@ def load_checkpoint(model, optimizer, checkpoint_path, device):
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
         best_accuracy = checkpoint.get('best_accuracy', 0.0)
+        acc_list = checkpoint.get('accuracy_list', [])
         print(f"Loaded checkpoint from {checkpoint_path}, starting from epoch {start_epoch} with best accuracy {best_accuracy:.4f}")
-        return start_epoch, best_accuracy
+        return start_epoch, best_accuracy, acc_list
     else:
         print(f"No checkpoint found at {checkpoint_path}. Starting training from scratch.")
         return 0, 0.0
@@ -91,7 +92,7 @@ def train(rank, world_size):
     indices = np.random.permutation(dataset_size)
     
     # Select the first 100,000 random indices
-    subset_indices = indices[200000:]
+    subset_indices = indices[0:10000]
     
     # Create a subset dataset
     dataset = Subset(dataset, subset_indices)
@@ -118,13 +119,21 @@ def train(rank, world_size):
 
     # TensorBoard writer (only for rank 0)
     writer = SummaryWriter() if rank == 0 else None
+    
 
     # Load checkpoint if exists maxvit-189-0.8860.pth
-    checkpoint_path = os.path.join(model_save_path, "maxvit-189-0.8860.pth")
-    start_epoch, best_accuracy = load_checkpoint(model, optimizer, checkpoint_path, device)
+    # checkpoint_path = os.path.join(model_save_path, "maxvit-189-0.8860.pth")
+    start_epoch = 0
+    best_accuracy = 0.0
+    acc_list = []
+    
+    checkpoint_path =None
+    if checkpoint_path:
+        start_epoch, best_accuracy,acc_list = load_checkpoint(model, optimizer, checkpoint_path, device)
+    
 
     # Training loop
-    acc_list = []
+  
     for epoch in range(start_epoch, num_epochs):
         model.train()
         train_sampler.set_epoch(epoch)

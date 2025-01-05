@@ -82,16 +82,16 @@ class Maxvit(nn.Module):
             nn.Linear(1280, 512)
         )
         
-        self.fc_3 = nn.Sequential(
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, num_classes)
-        )
         # self.fc_3 = nn.Sequential(
-        #     nn.Linear(512*512, 512),
+        #     nn.Linear(512, 512),
         #     nn.ReLU(),
         #     nn.Linear(512, num_classes)
-        # )#x
+        # )
+        self.fc_3 = nn.Sequential(
+            nn.Linear(512*512, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_classes)
+        )#x
 
     def _infer_feature_dim(self):
         """通过钩子获取主干网络的输出特征维度"""
@@ -110,60 +110,60 @@ class Maxvit(nn.Module):
         # 移除钩子
         handle.remove()
 
-    def forward(self, x):
-        """前向传播，处理两个输入图像"""
-        feature1 = self.backbone(x[0])  # 图像 1 的特征
-        feature2 = self.backbone(x[1])  # 图像 2 的特征
-        feature1 = self.pooling(feature1).view(feature1.size(0), -1)
-        feature2 = self.pooling(feature2).view(feature2.size(0), -1)
-        t_1 = self.fc_1(feature1)  # 映射到嵌入空间
-        t_2 = self.fc_2(feature2)
-        
-        # 将两个特征相加后通过最终分类器
-        combined_features = t_1 + t_2
-        #求出 t1转变为t2的转换矩阵x t1*x = t2
-        # combined_features=torch.matmul(t_1.t(),t_2)
-        
-        output = self.fc_3(combined_features)
-    
-        
-        return output
-    # def forward(self, x):#x
+    # def forward(self, x):
     #     """前向传播，处理两个输入图像"""
-    #     # 获取 Backbone 的嵌入特征
     #     feature1 = self.backbone(x[0])  # 图像 1 的特征
     #     feature2 = self.backbone(x[1])  # 图像 2 的特征
-    #     feature1 = self.pooling(feature1).view(feature1.size(0), -1)  # [batch_size, feature_dim]
-    #     feature2 = self.pooling(feature2).view(feature2.size(0), -1)  # [batch_size, feature_dim]
+    #     feature1 = self.pooling(feature1).view(feature1.size(0), -1)
+    #     feature2 = self.pooling(feature2).view(feature2.size(0), -1)
+    #     t_1 = self.fc_1(feature1)  # 映射到嵌入空间
+    #     t_2 = self.fc_2(feature2)
         
-    #     # 将特征映射到嵌入空间
-    #     t_1 = self.fc_1(feature1)  # [batch_size, 512]
-    #     t_2 = self.fc_2(feature2)  # [batch_size, 512]
+    #     # 将两个特征相加后通过最终分类器
+    #     combined_features = t_1 + t_2
+    #     #求出 t1转变为t2的转换矩阵x t1*x = t2
+    #     # combined_features=torch.matmul(t_1.t(),t_2)
         
-    #     # 初始化一个变形矩阵列表
-    #     transformation_matrices = []
-    #     with torch.cuda.amp.autocast(enabled=False):
-    #         for i in range(t_1.size(0)):  # 遍历每个样本
-    #             t1_sample = t_1[i].unsqueeze(0)  # [1, 512]
-    #             t2_sample = t_2[i].unsqueeze(0)  # [1, 512]
-    #             #trans t1sample to float32
-    #             t1_sample=t1_sample.float()
-    #             t2_sample=t2_sample.float()
-                
-    #             # 计算变形矩阵 X: (t1^T * t1)^(-1) * t1^T * t2
-    #             # pseudo_inverse = torch.linalg.pinv((t1_sample.T @ t1_sample).float())
-    #             # pseudo_inverse = torch.linalg.pinv(t1_sample.T @ t1_sample)  # [512, 512]
-    #             pseudo_inverse = torch.linalg.pinv((t1_sample.T @ t1_sample).float())
-
-    #             transformation_matrix = pseudo_inverse @ t1_sample.T @ t2_sample  # [512, 512]
-    #             transformation_matrices.append(transformation_matrix)
-        
-    #     # 堆叠所有变形矩阵并展平为向量
-    #     transformation_matrices = torch.stack(transformation_matrices)  # [batch_size, 512, 512]
-    #     transformation_vectors = transformation_matrices.view(t_1.size(0), -1)  # [batch_size, 512*512]
-        
-    #     # 输入到全连接层
-    #     output = self.fc_3(transformation_vectors)
+    #     output = self.fc_3(combined_features)
+    
         
     #     return output
+    def forward(self, x):#x
+        """前向传播，处理两个输入图像"""
+        # 获取 Backbone 的嵌入特征
+        feature1 = self.backbone(x[0])  # 图像 1 的特征
+        feature2 = self.backbone(x[1])  # 图像 2 的特征
+        feature1 = self.pooling(feature1).view(feature1.size(0), -1)  # [batch_size, feature_dim]
+        feature2 = self.pooling(feature2).view(feature2.size(0), -1)  # [batch_size, feature_dim]
+        
+        # 将特征映射到嵌入空间
+        t_1 = self.fc_1(feature1)  # [batch_size, 512]
+        t_2 = self.fc_2(feature2)  # [batch_size, 512]
+        
+        # 初始化一个变形矩阵列表
+        transformation_matrices = []
+        with torch.cuda.amp.autocast(enabled=False):
+            for i in range(t_1.size(0)):  # 遍历每个样本
+                t1_sample = t_1[i].unsqueeze(0)  # [1, 512]
+                t2_sample = t_2[i].unsqueeze(0)  # [1, 512]
+                #trans t1sample to float32
+                t1_sample=t1_sample.float()
+                t2_sample=t2_sample.float()
+                
+                # 计算变形矩阵 X: (t1^T * t1)^(-1) * t1^T * t2
+                # pseudo_inverse = torch.linalg.pinv((t1_sample.T @ t1_sample).float())
+                # pseudo_inverse = torch.linalg.pinv(t1_sample.T @ t1_sample)  # [512, 512]
+                pseudo_inverse = torch.linalg.pinv((t1_sample.T @ t1_sample).float())
+
+                transformation_matrix = pseudo_inverse @ t1_sample.T @ t2_sample  # [512, 512]
+                transformation_matrices.append(transformation_matrix)
+        
+        # 堆叠所有变形矩阵并展平为向量
+        transformation_matrices = torch.stack(transformation_matrices)  # [batch_size, 512, 512]
+        transformation_vectors = transformation_matrices.view(t_1.size(0), -1)  # [batch_size, 512*512]
+        
+        # 输入到全连接层
+        output = self.fc_3(transformation_vectors)
+        
+        return output
 

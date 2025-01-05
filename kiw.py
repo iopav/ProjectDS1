@@ -54,7 +54,7 @@ pin_memory = True
 drop_path_rate = 0.625
 gamma = 0.7
 num_epochs=200
-
+torch.manual_seed(0)
 # dataset = torch.utils.data.Subset(dataset, range(0, 45))
 # Define the lengths for train, validation, and test sets
 train_size = int(0.7 * len(dataset))

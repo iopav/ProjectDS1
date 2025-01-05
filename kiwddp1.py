@@ -16,6 +16,7 @@ from refer.mymodels import Maxvit
 from refer.Dataset import KinshipDataset, FIWDataset
 import refer.img_processor as img_processor
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.model_selection import train_test_split
 # torch.cuda.set_max_split_size_mb(128)  # 调整此值减少显存碎片化
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
@@ -64,7 +65,7 @@ def train(rank, world_size):
     dataset = ConcatDataset([dataset, dataset1])
     # Randomly shuffle the indices of the dataset
     dataset_size = len(dataset)
-    indices = np.random.permutation(dataset_size)
+    # indices = np.random.permutation(dataset_size)
     
     # Select the first 100,000 random indices
     # subset_indices = indices[100000:200000]
@@ -72,14 +73,29 @@ def train(rank, world_size):
     # Create a subset dataset
     # dataset = Subset(dataset, subset_indices)
     # Split dataset into train and test
-    train_size = int(0.7 * len(dataset))
-    test_size = len(dataset) - train_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    # train_size = int(0.7 * len(dataset))
+    # test_size = len(dataset) - train_size
+    # train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
     #保存test数据集index
-    test_indices = test_dataset.indices if isinstance(test_dataset, Subset) else list(range(len(test_dataset)))
-    np.save('test_indices.npy', test_indices)
-
+    # test_indices = test_dataset.indices if isinstance(test_dataset, Subset) else list(range(len(test_dataset)))
+    # np.save('test_indices.npy', test_indices)
     
+    labels = [label for _, label in dataset]  # 假设你的标签存储在每个样本的第二项中
+
+# 使用 train_test_split 进行分层分割
+    train_indices, test_indices = train_test_split(
+        np.arange(len(dataset)),  # 数据集的索引
+        test_size=0.3,  # 30%的数据作为测试集
+        stratify=labels  # 按照标签进行分层
+    )
+
+    # 创建训练集和测试集
+    train_dataset = Subset(dataset, train_indices)
+    test_dataset = Subset(dataset, test_indices)
+    
+    # test_indices = test_dataset.indices if isinstance(test_dataset, Subset) else list(range(len(test_dataset)))
+    
+    np.save('test_indices.npy', test_indices)
     # Use DistributedSampler for distributed training
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset, num_replicas=world_size, rank=rank)
