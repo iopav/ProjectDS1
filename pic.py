@@ -14,7 +14,7 @@ torch.manual_seed(0)
 img_folder1 = '../data/KinFaceW-I/images'
 img_folder2 = '../data/KinFaceW-II/images'
 fiw_csv = 'data/pair.csv'
-batch_size = 16
+batch_size = 48
 
 print("loading data")
 
@@ -42,7 +42,7 @@ test_dataset = Subset(dataset, test_indices)
 
 # 创建测试加载器
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
-
+print("loading data done")
 # 加载模型
 model = Maxvit(num_classes=8)
 checkpoint_path = 'model/maxvit-73-0.8542.pth'
@@ -68,7 +68,7 @@ print("模型加载完成")
 # 计算每种类型的准确率
 correct = torch.zeros(8, device=device)  # 假设有 8 类
 total = torch.zeros(8, device=device)
-
+print("计算分类准确率")
 with torch.no_grad():
     for imgs, labels in test_loader:
         imgs = (imgs[0].to(device), imgs[1].to(device))  # 图像放入 GPU
@@ -81,7 +81,7 @@ with torch.no_grad():
             if label == pred:
                 correct[label] += 1
             total[label] += 1
-
+print("分类准确率计算完成")
 # 计算准确率
 accuracies = (correct / total).cpu().numpy()  # 转回 CPU 以便绘图
 categories = [f'Class {label}' for label in range(len(accuracies))]

@@ -12,7 +12,7 @@ import torch.nn.functional as NF
 from PIL import Image
 import matplotlib.pyplot as plt
 from refer.utils import *
-from refer.mymodels import Maxvit
+from refer.mymodels1 import Maxvit
 from refer.Dataset import KinshipDataset, FIWDataset
 import refer.img_processor as img_processor
 from torch.utils.tensorboard import SummaryWriter
